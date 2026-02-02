@@ -127,10 +127,24 @@ export function StakeSelector({ instrument, onConfirm, onCancel }: StakeSelector
 
       {/* Stake Selection */}
       <div className="mb-6 space-y-4">
+        <div className="rounded-lg border-2 border-warning/30 bg-warning/5 p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            <h4 className="text-sm font-bold text-foreground">How Staking Works</h4>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            You <strong className="text-foreground">INVEST</strong> time (your stake) into this trade. This amount is <strong className="text-danger">DEDUCTED FIRST</strong>. 
+            Based on the outcome, you may get <strong className="text-success">MORE back</strong> (profit), 
+            get <strong className="text-warning">SOME back</strong> (partial loss), or 
+            get <strong className="text-danger">NOTHING back</strong> (total loss). 
+            Just like real trading!
+          </p>
+        </div>
+        
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Time to Risk</span>
+            <span className="text-sm text-muted-foreground">Time to Invest/Risk</span>
           </div>
           <motion.div
             key={stake}
@@ -198,21 +212,31 @@ export function StakeSelector({ instrument, onConfirm, onCancel }: StakeSelector
 
       {/* Outcome Scenarios */}
       <div className="mb-6 space-y-3">
-        <h4 className="text-sm font-bold text-foreground">If you risk {formatTimeString(stake)}:</h4>
+        <h4 className="text-sm font-bold text-foreground">Investment Scenarios (if you stake {formatTimeString(stake)}):</h4>
+        
+        <div className="rounded-lg border border-muted bg-muted/20 p-3 text-xs text-center">
+          <p className="text-muted-foreground">
+            <span className="text-danger font-bold">-{formatTimeString(stake)}</span> is deducted first (your investment). 
+            Then based on outcome, you receive <span className="text-foreground font-semibold">returns</span>:
+          </p>
+        </div>
         
         {/* Scenario Cards */}
         <div className="grid gap-3 md:grid-cols-3">
           {/* Best Case */}
           <div className="rounded-lg border border-success/50 bg-success/10 p-3">
-            <div className="mb-1 text-xs font-medium text-success">Best Case</div>
+            <div className="mb-1 text-xs font-medium text-success">🎯 Best Case</div>
             <div className="flex items-center gap-1">
               <ArrowRight className="h-4 w-4 text-success" />
               <span className="font-mono text-lg font-bold text-success">
                 +{formatTimeString(bestCase)}
               </span>
             </div>
-            <div className="text-xs text-muted-foreground">
-              You'll have: {formatTimeString(timeAfterBest)}
+            <div className="text-xs text-muted-foreground mt-1">
+              Return: {formatTimeString(stake + bestCase)}
+            </div>
+            <div className="text-xs font-semibold text-success">
+              Final: {formatTimeString(timeAfterBest)}
             </div>
           </div>
 
@@ -222,7 +246,7 @@ export function StakeSelector({ instrument, onConfirm, onCancel }: StakeSelector
             ev >= 0 ? 'border-primary/50 bg-primary/10' : 'border-warning/50 bg-warning/10'
           )}>
             <div className={cn('mb-1 text-xs font-medium', ev >= 0 ? 'text-primary' : 'text-warning')}>
-              Expected (Avg)
+              📊 Expected (Avg)
             </div>
             <div className="flex items-center gap-1">
               {expectedChange >= 0 ? (
@@ -234,8 +258,11 @@ export function StakeSelector({ instrument, onConfirm, onCancel }: StakeSelector
                 {expectedChange >= 0 ? '+' : ''}{formatTimeString(Math.abs(expectedChange))}
               </span>
             </div>
-            <div className="text-xs text-muted-foreground">
-              You'll have: {formatTimeString(timeAfterExpected)}
+            <div className="text-xs text-muted-foreground mt-1">
+              Return: {formatTimeString(stake + expectedChange)}
+            </div>
+            <div className={cn('text-xs font-semibold', ev >= 0 ? 'text-primary' : 'text-warning')}>
+              Final: {formatTimeString(timeAfterExpected)}
             </div>
           </div>
 
@@ -246,7 +273,7 @@ export function StakeSelector({ instrument, onConfirm, onCancel }: StakeSelector
           )}>
             <div className="mb-1 flex items-center gap-1 text-xs font-medium text-danger">
               {couldDie && <Skull className="h-3 w-3" />}
-              Worst Case
+              💀 Worst Case
             </div>
             <div className="flex items-center gap-1">
               <ArrowDown className="h-4 w-4 text-danger" />
@@ -254,8 +281,11 @@ export function StakeSelector({ instrument, onConfirm, onCancel }: StakeSelector
                 {formatTimeString(Math.abs(worstCase))}
               </span>
             </div>
-            <div className={cn('text-xs', couldDie ? 'font-bold text-danger' : 'text-muted-foreground')}>
-              {couldDie ? 'YOU DIE' : `You'll have: ${formatTimeString(timeAfterWorst)}`}
+            <div className="text-xs text-muted-foreground mt-1">
+              Return: {worstCase === -stake ? '0 (total loss)' : formatTimeString(stake + worstCase)}
+            </div>
+            <div className={cn('text-xs font-bold', couldDie ? 'text-danger' : 'text-muted-foreground')}>
+              {couldDie ? '☠️ YOU DIE' : `Final: ${formatTimeString(timeAfterWorst)}`}
             </div>
           </div>
         </div>

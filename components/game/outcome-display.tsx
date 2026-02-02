@@ -1,12 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Decision, MARKET_INSTRUMENTS, FINANCIAL_CONCEPTS, getConceptExplanation, calculateEV, formatTimeString } from '@/lib/game-engine';
 import { useGame } from '@/lib/game-context';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Leaderboard } from './leaderboard';
-import { TrendingUp, TrendingDown, BookOpen, Lightbulb, AlertTriangle, CheckCircle, XCircle, ArrowRight, Skull, Heart } from 'lucide-react';
+import { TrendingUp, TrendingDown, BookOpen, Lightbulb, AlertTriangle, CheckCircle, XCircle, ArrowRight, Skull, Heart, Trophy } from 'lucide-react';
 
 interface OutcomeDisplayProps {
   decision: Decision;
@@ -15,6 +16,7 @@ interface OutcomeDisplayProps {
 
 export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
   const { state, playerTitle } = useGame();
+  const [showLeaderboard, setShowLeaderboard] = useState(true);
   const instrument = MARKET_INSTRUMENTS.find((i) => i.id === decision.instrumentId)!;
   const conceptExplanation = getConceptExplanation(instrument, decision);
   const concept = FINANCIAL_CONCEPTS[instrument.concept as keyof typeof FINANCIAL_CONCEPTS];
@@ -25,7 +27,7 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
   const evDifference = decision.actualValue - decision.expectedValue;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
+    <div className="space-y-6">
       {/* Main Result Panel */}
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
@@ -100,23 +102,42 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
           </motion.div>
         </div>
 
-        {/* Trade Summary */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="rounded bg-muted/50 p-3 text-center">
-            <div className="text-xs text-muted-foreground">Risked</div>
-            <div className="font-mono text-lg font-bold text-foreground">{formatTimeString(decision.stake)}</div>
-          </div>
-          <div className="rounded bg-muted/50 p-3 text-center">
-            <div className="text-xs text-muted-foreground">Expected</div>
-            <div className={cn('font-mono text-lg font-bold', decision.expectedValue >= 0 ? 'text-success' : 'text-danger')}>
-              {decision.expectedValue >= 0 ? '+' : '-'}{formatTimeString(Math.abs(decision.expectedValue))}
+        {/* Trade Summary - Showing the staking mechanics */}
+        <div className="rounded-lg border-2 border-warning/30 bg-warning/5 p-4">
+          <h3 className="mb-3 font-bold text-foreground flex items-center gap-2">
+            <TrendingDown className="h-4 w-4 text-warning" />
+            Trade Breakdown
+          </h3>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="rounded bg-muted/50 p-3">
+              <div className="text-xs text-muted-foreground">💸 Staked (Invested)</div>
+              <div className="font-mono text-lg font-bold text-danger">-{formatTimeString(decision.stake)}</div>
+              <div className="text-xs text-muted-foreground mt-1">Your risk/investment</div>
+            </div>
+            <div className="rounded bg-muted/50 p-3">
+              <div className="text-xs text-muted-foreground">📊 Returned</div>
+              <div className={cn('font-mono text-lg font-bold', decision.actualValue >= 0 ? 'text-success' : 'text-danger')}>
+                {decision.actualValue >= 0 ? '+' : ''}{formatTimeString(decision.stake + decision.actualValue)}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">What you got back</div>
             </div>
           </div>
-          <div className="rounded bg-muted/50 p-3 text-center">
-            <div className="text-xs text-muted-foreground">Actual</div>
-            <div className={cn('font-mono text-lg font-bold', decision.actualValue >= 0 ? 'text-success' : 'text-danger')}>
-              {decision.actualValue >= 0 ? '+' : '-'}{formatTimeString(Math.abs(decision.actualValue))}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded bg-muted/50 p-3">
+              <div className="text-xs text-muted-foreground">Expected Return</div>
+              <div className={cn('font-mono text-base font-bold', decision.expectedValue >= 0 ? 'text-success' : 'text-danger')}>
+                {decision.expectedValue >= 0 ? '+' : ''}{formatTimeString(decision.expectedValue)}
+              </div>
             </div>
+            <div className="rounded bg-muted/50 p-3">
+              <div className="text-xs text-muted-foreground">Net Profit/Loss</div>
+              <div className={cn('font-mono text-base font-bold', decision.netChange >= 0 ? 'text-success' : 'text-danger')}>
+                {decision.netChange >= 0 ? '+' : ''}{formatTimeString(decision.netChange)}
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 p-2 rounded bg-card text-xs text-center text-muted-foreground">
+            💡 You invested {formatTimeString(decision.stake)} → Got back {formatTimeString(decision.stake + decision.actualValue)} → Net: {decision.netChange >= 0 ? '+' : ''}{formatTimeString(decision.netChange)}
           </div>
         </div>
 
@@ -206,14 +227,44 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
         </motion.div>
       </motion.div>
 
-      {/* Leaderboard Sidebar */}
-      <motion.div
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.3 }}
-      >
-        <Leaderboard currentScore={state.score} currentTitle={playerTitle} />
-      </motion.div>
+      {/* Leaderboard Section - Separate and Prominent */}
+      {showLeaderboard && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="rounded-lg border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 p-6"
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Trophy className="h-6 w-6 text-primary" />
+              <h2 className="text-2xl font-bold text-foreground">Leaderboard</h2>
+            </div>
+            <button
+              onClick={() => setShowLeaderboard(false)}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Hide
+            </button>
+          </div>
+          <p className="mb-4 text-sm text-muted-foreground">
+            See how you rank among the top traders. Survive longer and make smarter decisions to climb higher!
+          </p>
+          <Leaderboard currentScore={state.score} currentTitle={playerTitle} />
+        </motion.div>
+      )}
+
+      {!showLeaderboard && (
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          onClick={() => setShowLeaderboard(true)}
+          className="w-full rounded-lg border-2 border-primary/30 bg-primary/5 p-4 hover:bg-primary/10 transition-colors flex items-center justify-center gap-2"
+        >
+          <Trophy className="h-5 w-5 text-primary" />
+          <span className="font-semibold text-primary">Show Leaderboard</span>
+        </motion.button>
+      )}
     </div>
   );
 }
