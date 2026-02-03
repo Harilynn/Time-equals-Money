@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGame, MARKET_INSTRUMENTS } from '@/lib/game-context';
-import { MarketInstrument, Decision, getAvailableInstruments, calculateIncome, formatTimeString } from '@/lib/game-engine';
+import { MarketInstrument, Decision, getAvailableInstruments } from '@/lib/game-engine';
 import { TimeDisplay } from './time-display';
 import { MarketStatus } from './market-status';
 import { InstrumentCard } from './instrument-card';
@@ -17,24 +17,17 @@ import { cn } from '@/lib/utils';
 import { soundManager } from '@/lib/sound-manager';
 import { DollarSign, ArrowRight, CreditCard, GraduationCap, FlaskConical, Skull, Heart, AlertTriangle } from 'lucide-react';
 
-type GamePhase = 'earn' | 'decide' | 'commit' | 'resolution' | 'feedback';
+type GamePhase = 'decide' | 'commit' | 'resolution' | 'feedback' | 'earn';
 
 export function GameBoard() {
-  const { state, earnIncome, makeDecision, nextRound, playerTitle, startSimulation, endSimulation } = useGame();
-  const [phase, setPhase] = useState<GamePhase>('earn');
+  const { state, makeDecision, nextRound, playerTitle, startSimulation, endSimulation } = useGame();
+  const [phase, setPhase] = useState<GamePhase>('decide'); // Start directly on decide phase, not earn
   const [selectedInstrument, setSelectedInstrument] = useState<MarketInstrument | null>(null);
   const [lastDecision, setLastDecision] = useState<Decision | null>(null);
   const [showMarginPanel, setShowMarginPanel] = useState(false);
   const [showLessonPanel, setShowLessonPanel] = useState(false);
 
   const availableInstruments = getAvailableInstruments(state.playerLevel);
-  const expectedIncome = calculateIncome(state);
-
-  const handleEarnIncome = useCallback(() => {
-    soundManager.playIncome();
-    earnIncome();
-    setPhase('decide');
-  }, [earnIncome]);
 
   const handleSelectInstrument = useCallback((instrument: MarketInstrument) => {
     soundManager.playClick();
@@ -73,12 +66,9 @@ export function GameBoard() {
     nextRound();
     setSelectedInstrument(null);
     setLastDecision(null);
-    if (lastDecision?.netChange != null && lastDecision.netChange < 0) {
-      setPhase('decide');
-    } else {
-      setPhase('earn');
-    }
-  }, [nextRound, lastDecision]);
+    // Always go to decide phase, never earn phase
+    setPhase('decide');
+  }, [nextRound]);
 
   const handleSimulationToggle = useCallback(() => {
     if (state.isSimulationMode) {
@@ -172,38 +162,7 @@ export function GameBoard() {
           )}
 
           <AnimatePresence mode="wait">
-            {/* PHASE 1: EARN */}
-            {phase === 'earn' && (
-              <motion.div
-                key="earn"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="rounded-lg border-2 border-primary bg-card p-8 text-center"
-              >
-                <Heart className="mx-auto mb-4 h-16 w-16 text-primary" />
-                <h2 className="mb-2 text-2xl font-bold text-foreground">Collect Your Income</h2>
-                <p className="mb-6 text-muted-foreground">
-                  Based on your stability and market conditions, you will receive:
-                </p>
-                <motion.div
-                  animate={{ scale: [1, 1.05, 1] }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                  className="mb-2 font-mono text-5xl font-bold text-primary"
-                >
-                  +{formatTimeString(expectedIncome)}
-                </motion.div>
-                <p className="mb-6 text-sm text-muted-foreground">
-                  ({expectedIncome} days added to your life)
-                </p>
-                <Button onClick={handleEarnIncome} size="lg" className="gap-2">
-                  Collect Income
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </motion.div>
-            )}
-
-            {/* PHASE 2: DECIDE */}
+            {/* PHASE 1: DECIDE - Players always earn money when they win. No initial income phase. */}
             {phase === 'decide' && (
               <motion.div 
                 key="decide" 
@@ -303,7 +262,7 @@ export function GameBoard() {
               </motion.div>
             )}
 
-            {/* PHASE 3: COMMIT */}
+            {/* PHASE 2: COMMIT */}
             {phase === 'commit' && selectedInstrument && (
               <motion.div 
                 key="commit" 
@@ -319,7 +278,7 @@ export function GameBoard() {
               </motion.div>
             )}
 
-            {/* PHASE 4: RESOLUTION */}
+            {/* PHASE 3: RESOLUTION */}
             {phase === 'resolution' && lastDecision && (
               <motion.div
                 key="resolution"
@@ -338,7 +297,7 @@ export function GameBoard() {
               </motion.div>
             )}
 
-            {/* PHASE 5: FEEDBACK */}
+            {/* PHASE 4: FEEDBACK */}
             {phase === 'feedback' && lastDecision && (
               <motion.div 
                 key="feedback" 
