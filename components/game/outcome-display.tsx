@@ -18,6 +18,7 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
   const [showFlash, setShowFlash] = useState(false);
   const [canContinue, setCanContinue] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const autoCloseDelayMs = 3500;
   const instrument = MARKET_INSTRUMENTS.find((i) => i.id === decision.instrumentId)!;
   const conceptExplanation = getConceptExplanation(instrument, decision);
   const concept = FINANCIAL_CONCEPTS[instrument.concept as keyof typeof FINANCIAL_CONCEPTS];
@@ -34,12 +35,14 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
     const timer = setTimeout(() => setShowFlash(false), 1400);
     const detailsTimer = setTimeout(() => setShowDetails(true), 1800);
     const unlockTimer = setTimeout(() => setCanContinue(true), 2000);
+    const autoCloseTimer = setTimeout(() => onContinue(), autoCloseDelayMs);
     return () => {
       clearTimeout(timer);
       clearTimeout(detailsTimer);
       clearTimeout(unlockTimer);
+      clearTimeout(autoCloseTimer);
     };
-  }, [decision]);
+  }, [decision, onContinue]);
 
   return (
     <div className="space-y-4">
