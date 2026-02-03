@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   HISTORICAL_SCENARIOS,
@@ -8,7 +8,8 @@ import {
   SimulationScenario,
   SimulationState,
   EventType,
-  runFastSimulation,
+  SimulationDecision,
+  SimulationDecisionOption,
   formatSimulationResults,
   createSimulationState,
   simulateDay,
@@ -28,7 +29,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface SimulationModeProps {
   onBack: () => void;
@@ -47,10 +48,16 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [speed, setSpeed] = useState(1);
+  const [interactiveMode, setInteractiveMode] = useState(true);
+  const [pendingDecision, setPendingDecision] = useState<SimulationDecision | null>(null);
+  const [decisionIndex, setDecisionIndex] = useState(0);
+  const [focusedOption, setFocusedOption] = useState<SimulationDecisionOption | null>(null);
   const [lossAlert, setLossAlert] = useState<{ title: string; detail: string } | null>(null);
   const [lastAlertDay, setLastAlertDay] = useState<number | null>(null);
 
-  const allScenarios = [...HISTORICAL_SCENARIOS, ...ABSTRACTED_SCENARIOS];
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const stateRef = useRef<SimulationState | null>(null);
+  const scenarioRef = useRef<SimulationScenario | null>(null);
 
   const eventIcons = {
     boom: TrendingUp,
@@ -73,6 +80,78 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
     regulation: 'Policy changes, new rules, compliance costs',
   };
 
+  const clearSimulationInterval = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  const applyDecisionOption = (
+    state: SimulationState,
+    scenario: SimulationScenario,
+    option: SimulationDecisionOption
+  ): SimulationState => {
+    const newPrice = Math.max(state.currentPrice * (1 + option.effects.priceShock), state.currentPrice * 0.01);
+    const newSentiment = Math.max(-100, Math.min(100, state.sentiment + option.effects.sentiment));
+    const newVolatility = Math.max(scenario.volatilityBase * 0.5, Math.min(0.3, state.volatility * (1 + option.effects.volatility)));
+
+    return {
+      ...state,
+      currentPrice: newPrice,
+      sentiment: newSentiment,
+      volatility: newVolatility,
+      priceHistory: [...state.priceHistory, newPrice],
+      snapshots: [
+        ...state.snapshots,
+        {
+          timestamp: state.currentDay,
+          price: newPrice,
+          volatility: newVolatility,
+          volume: state.volume,
+          sentiment: newSentiment,
+          activeEvents: state.activeEvents,
+        },
+      ],
+      score: state.score + option.effects.score,
+      profitLoss: newPrice - scenario.basePrice,
+    };
+  };
+
+  const startSimulationInterval = (scenario: SimulationScenario) => {
+    clearSimulationInterval();
+
+    intervalRef.current = setInterval(() => {
+      setProgress((p) => {
+        if (!stateRef.current) return p;
+
+        if (p >= scenario.durationDays) {
+          clearSimulationInterval();
+          setIsRunning(false);
+          setStage('results');
+          return scenario.durationDays;
+        }
+
+        const currentDay = Math.floor(p);
+        if (interactiveMode && pendingDecision === null && scenario.decisions?.length) {
+          const nextDecision = scenario.decisions[decisionIndex];
+          if (nextDecision && currentDay >= nextDecision.day) {
+            clearSimulationInterval();
+            setIsRunning(false);
+            setPendingDecision(nextDecision);
+            soundManager.playWarning();
+            return p;
+          }
+        }
+
+        const nextState = simulateDay(stateRef.current, scenario, currentDay);
+        stateRef.current = nextState;
+        setSimulationState({ ...nextState });
+        return Math.min(p + 1, scenario.durationDays);
+      });
+    }, 100 / speed);
+  };
+
   // Run simulation
   const runSimulation = (scenario: SimulationScenario) => {
     setSelectedScenario(scenario);
@@ -81,9 +160,13 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
     setStage('running');
     setLossAlert(null);
     setLastAlertDay(null);
+    setPendingDecision(null);
+    setDecisionIndex(0);
 
     let state = createSimulationState(scenario);
+    stateRef.current = state;
     setSimulationState(state);
+
     const modifiedScenario: SimulationScenario = {
       ...scenario,
       events: {
@@ -95,19 +178,22 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
       },
     };
 
-    const interval = setInterval(() => {
-      setProgress((p) => {
-        if (p >= scenario.durationDays) {
-          clearInterval(interval);
-          setIsRunning(false);
-          setStage('results');
-          return scenario.durationDays;
-        }
-        state = simulateDay(state, modifiedScenario, p);
-        setSimulationState({ ...state });
-        return p + (10 / speed);
-      });
-    }, 100 / speed);
+    scenarioRef.current = modifiedScenario;
+    startSimulationInterval(modifiedScenario);
+  };
+
+  const handleDecisionSelect = (option: SimulationDecisionOption) => {
+    if (!stateRef.current || !scenarioRef.current) return;
+
+    const updatedState = applyDecisionOption(stateRef.current, scenarioRef.current, option);
+    stateRef.current = updatedState;
+    setSimulationState({ ...updatedState });
+    setPendingDecision(null);
+    setFocusedOption(null);
+    setDecisionIndex((idx) => idx + 1);
+    setIsRunning(true);
+    soundManager.playClick();
+    startSimulationInterval(scenarioRef.current);
   };
 
   const toggleEvent = (eventType: EventType) => {
@@ -153,6 +239,12 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
       return () => clearTimeout(timeout);
     }
   }, [stage, simulationState, lastAlertDay]);
+
+  useEffect(() => {
+    return () => {
+      clearSimulationInterval();
+    };
+  }, []);
 
   // STAGE 1: Scenario Selection
   if (stage === 'select') {
@@ -365,6 +457,48 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
             </div>
           </motion.div>
 
+          {/* Simulation Style */}
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }} className="mb-8">
+            <h3 className="text-lg font-bold text-foreground mb-3 flex items-center gap-2">
+              <FlaskConical className="h-5 w-5 text-primary" /> Simulation Style
+            </h3>
+            <div className="flex gap-3">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  soundManager.playClick();
+                  setInteractiveMode(true);
+                }}
+                className={`px-6 py-2 rounded-lg font-bold transition-all ${
+                  interactiveMode
+                    ? 'bg-primary text-primary-foreground border-2 border-primary'
+                    : 'bg-card text-muted-foreground border-2 border-border hover:border-primary'
+                }`}
+              >
+                Interactive Decisions
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  soundManager.playClick();
+                  setInteractiveMode(false);
+                }}
+                className={`px-6 py-2 rounded-lg font-bold transition-all ${
+                  !interactiveMode
+                    ? 'bg-warning text-warning-foreground border-2 border-warning'
+                    : 'bg-card text-muted-foreground border-2 border-border hover:border-warning'
+                }`}
+              >
+                Auto Replay
+              </motion.button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Interactive mode pauses during key historical moments to test your decisions.
+            </p>
+          </motion.div>
+
           {/* Action Buttons */}
           <div className="flex gap-4">
             <motion.button
@@ -461,6 +595,143 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
                     <div className="text-sm text-muted-foreground mt-1">{lossAlert.detail}</div>
                   </div>
                 </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {pendingDecision && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.98, opacity: 0 }}
+                  className="w-full max-w-4xl rounded-xl border-2 border-danger/40 bg-card/95 p-6"
+                >
+                  <div className="mb-4 flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-xs text-danger uppercase tracking-wider">Historical Decision</div>
+                      <h2 className="text-2xl font-bold text-foreground">{pendingDecision.title}</h2>
+                      <p className="text-sm text-muted-foreground mt-2">{pendingDecision.context}</p>
+                    </div>
+                    <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                      Day {pendingDecision.day}
+                    </div>
+                  </div>
+
+                  <div className="mb-6 rounded-lg border border-primary/30 bg-primary/5 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <BookOpen className="h-4 w-4 text-primary" />
+                      <span className="font-semibold text-foreground">{pendingDecision.concept.name}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">Formula</div>
+                    <div className="font-mono text-sm text-primary">{pendingDecision.concept.formula}</div>
+                    <p className="text-xs text-muted-foreground mt-2">{pendingDecision.concept.lesson}</p>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    {pendingDecision.options.map((option) => (
+                      <div key={option.id} className="rounded-lg border border-border bg-muted/30 p-4">
+                        <h3 className="font-semibold text-foreground mb-2">{option.label}</h3>
+                        <p className="text-xs text-muted-foreground mb-3">{option.rationale}</p>
+                        <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground mb-3">
+                          <div>
+                            <div className="uppercase tracking-wider">Prob</div>
+                            <div className="font-semibold text-foreground">{Math.round(option.probability * 100)}%</div>
+                          </div>
+                          <div>
+                            <div className="uppercase tracking-wider">EV</div>
+                            <div className={option.expectedReturn >= 0 ? 'text-success font-semibold' : 'text-danger font-semibold'}>
+                              {option.expectedReturn >= 0 ? '+' : ''}{option.expectedReturn}%
+                            </div>
+                          </div>
+                          <div>
+                            <div className="uppercase tracking-wider">Vol</div>
+                            <div className="font-semibold text-foreground">{option.volatility}%</div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleDecisionSelect(option)}
+                            className="flex-1 rounded-md bg-danger px-3 py-2 text-xs font-semibold text-white hover:bg-danger/90"
+                          >
+                            Choose
+                          </button>
+                          <button
+                            onClick={() => {
+                              soundManager.playClick();
+                              setFocusedOption(option);
+                            }}
+                            className="rounded-md border border-border bg-card px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                          >
+                            View Impact
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {focusedOption && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[60] flex items-center justify-center bg-background/70 p-4 backdrop-blur-sm"
+                onClick={() => setFocusedOption(null)}
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.98, opacity: 0 }}
+                  className="w-full max-w-lg rounded-xl border-2 border-primary/40 bg-card/95 p-6"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <div className="text-xs text-primary uppercase tracking-wider">Impact Breakdown</div>
+                      <h3 className="text-xl font-bold text-foreground">{focusedOption.label}</h3>
+                    </div>
+                    <button
+                      onClick={() => setFocusedOption(null)}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Close
+                    </button>
+                  </div>
+
+                  <div className="space-y-3 text-sm">
+                    <div className="rounded-md border border-border bg-muted/40 p-3">
+                      <div className="text-xs text-muted-foreground uppercase tracking-wider">Player</div>
+                      <div className="text-foreground font-medium">{focusedOption.impacts.player}</div>
+                    </div>
+                    <div className="rounded-md border border-border bg-muted/40 p-3">
+                      <div className="text-xs text-muted-foreground uppercase tracking-wider">Government</div>
+                      <div className="text-foreground font-medium">{focusedOption.impacts.government}</div>
+                    </div>
+                    <div className="rounded-md border border-border bg-muted/40 p-3">
+                      <div className="text-xs text-muted-foreground uppercase tracking-wider">Economy</div>
+                      <div className="text-foreground font-medium">{focusedOption.impacts.economy}</div>
+                    </div>
+                    <div className="rounded-md border border-border bg-muted/40 p-3">
+                      <div className="text-xs text-muted-foreground uppercase tracking-wider">Billionaires</div>
+                      <div className="text-foreground font-medium">{focusedOption.impacts.billionaires}</div>
+                    </div>
+                    <div className="rounded-md border border-border bg-muted/40 p-3">
+                      <div className="text-xs text-muted-foreground uppercase tracking-wider">Middle Class</div>
+                      <div className="text-foreground font-medium">{focusedOption.impacts.middleClass}</div>
+                    </div>
+                  </div>
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
