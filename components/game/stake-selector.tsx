@@ -225,7 +225,7 @@ export function StakeSelector({ instrument, onConfirm, onCancel }: StakeSelector
         <div className="grid gap-3 md:grid-cols-3">
           {/* Best Case */}
           <div className="rounded-lg border border-success/50 bg-success/10 p-3">
-            <div className="mb-1 text-xs font-medium text-success">🎯 Best Case</div>
+            <div className="mb-1 text-xs font-medium text-success">Best Case</div>
             <div className="flex items-center gap-1">
               <ArrowRight className="h-4 w-4 text-success" />
               <span className="font-mono text-lg font-bold text-success">
@@ -246,7 +246,7 @@ export function StakeSelector({ instrument, onConfirm, onCancel }: StakeSelector
             ev >= 0 ? 'border-primary/50 bg-primary/10' : 'border-warning/50 bg-warning/10'
           )}>
             <div className={cn('mb-1 text-xs font-medium', ev >= 0 ? 'text-primary' : 'text-warning')}>
-              📊 Expected (Avg)
+              Expected (Avg)
             </div>
             <div className="flex items-center gap-1">
               {expectedChange >= 0 ? (
@@ -273,7 +273,7 @@ export function StakeSelector({ instrument, onConfirm, onCancel }: StakeSelector
           )}>
             <div className="mb-1 flex items-center gap-1 text-xs font-medium text-danger">
               {couldDie && <Skull className="h-3 w-3" />}
-              💀 Worst Case
+              Worst Case
             </div>
             <div className="flex items-center gap-1">
               <ArrowDown className="h-4 w-4 text-danger" />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Decision, MARKET_INSTRUMENTS, FINANCIAL_CONCEPTS, getConceptExplanation, calculateEV, formatTimeString } from '@/lib/game-engine';
 import { useGame } from '@/lib/game-context';
@@ -17,6 +17,7 @@ interface OutcomeDisplayProps {
 export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
   const { state, playerTitle } = useGame();
   const [showLeaderboard, setShowLeaderboard] = useState(true);
+  const [showFlash, setShowFlash] = useState(false);
   const instrument = MARKET_INSTRUMENTS.find((i) => i.id === decision.instrumentId)!;
   const conceptExplanation = getConceptExplanation(instrument, decision);
   const concept = FINANCIAL_CONCEPTS[instrument.concept as keyof typeof FINANCIAL_CONCEPTS];
@@ -26,8 +27,25 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
   const isLoss = decision.netChange < 0;
   const evDifference = decision.actualValue - decision.expectedValue;
 
+  useEffect(() => {
+    setShowFlash(true);
+    const timer = setTimeout(() => setShowFlash(false), 550);
+    return () => clearTimeout(timer);
+  }, [decision]);
+
   return (
     <div className="space-y-6">
+      {showFlash && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0.15, 0.6, 0] }}
+          transition={{ duration: 0.55, ease: 'easeOut' }}
+          className={cn(
+            'pointer-events-none fixed inset-0 z-40',
+            isProfit ? 'bg-success/40' : 'bg-danger/40'
+          )}
+        />
+      )}
       {/* Main Result Panel */}
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
@@ -110,12 +128,12 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
           </h3>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="rounded bg-muted/50 p-3">
-              <div className="text-xs text-muted-foreground">💸 Staked (Invested)</div>
+              <div className="text-xs text-muted-foreground">Staked (Invested)</div>
               <div className="font-mono text-lg font-bold text-danger">-{formatTimeString(decision.stake)}</div>
               <div className="text-xs text-muted-foreground mt-1">Your risk/investment</div>
             </div>
             <div className="rounded bg-muted/50 p-3">
-              <div className="text-xs text-muted-foreground">📊 Returned</div>
+              <div className="text-xs text-muted-foreground">Returned</div>
               <div className={cn('font-mono text-lg font-bold', decision.actualValue >= 0 ? 'text-success' : 'text-danger')}>
                 {decision.actualValue >= 0 ? '+' : ''}{formatTimeString(decision.stake + decision.actualValue)}
               </div>
@@ -137,7 +155,7 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
             </div>
           </div>
           <div className="mt-3 p-2 rounded bg-card text-xs text-center text-muted-foreground">
-            💡 You invested {formatTimeString(decision.stake)} → Got back {formatTimeString(decision.stake + decision.actualValue)} → Net: {decision.netChange >= 0 ? '+' : ''}{formatTimeString(decision.netChange)}
+            You invested {formatTimeString(decision.stake)} → Got back {formatTimeString(decision.stake + decision.actualValue)} → Net: {decision.netChange >= 0 ? '+' : ''}{formatTimeString(decision.netChange)}
           </div>
         </div>
 
