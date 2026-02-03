@@ -73,8 +73,12 @@ export function GameBoard() {
     nextRound();
     setSelectedInstrument(null);
     setLastDecision(null);
-    setPhase('earn');
-  }, [nextRound]);
+    if (lastDecision?.netChange != null && lastDecision.netChange < 0) {
+      setPhase('decide');
+    } else {
+      setPhase('earn');
+    }
+  }, [nextRound, lastDecision]);
 
   const handleSimulationToggle = useCallback(() => {
     if (state.isSimulationMode) {
@@ -338,11 +342,14 @@ export function GameBoard() {
             {phase === 'feedback' && lastDecision && (
               <motion.div 
                 key="feedback" 
-                initial={{ opacity: 0, y: 20 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                exit={{ opacity: 0, y: -20 }}
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
               >
-                <OutcomeDisplay decision={lastDecision} onContinue={handleContinue} />
+                <div className="w-full max-w-3xl">
+                  <OutcomeDisplay decision={lastDecision} onContinue={handleContinue} />
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

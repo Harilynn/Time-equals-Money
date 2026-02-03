@@ -18,6 +18,7 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
   const { state, playerTitle } = useGame();
   const [showLeaderboard, setShowLeaderboard] = useState(true);
   const [showFlash, setShowFlash] = useState(false);
+  const [canContinue, setCanContinue] = useState(false);
   const instrument = MARKET_INSTRUMENTS.find((i) => i.id === decision.instrumentId)!;
   const conceptExplanation = getConceptExplanation(instrument, decision);
   const concept = FINANCIAL_CONCEPTS[instrument.concept as keyof typeof FINANCIAL_CONCEPTS];
@@ -28,9 +29,14 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
   const evDifference = decision.actualValue - decision.expectedValue;
 
   useEffect(() => {
+    setCanContinue(false);
     setShowFlash(true);
-    const timer = setTimeout(() => setShowFlash(false), 550);
-    return () => clearTimeout(timer);
+    const timer = setTimeout(() => setShowFlash(false), 1400);
+    const unlockTimer = setTimeout(() => setCanContinue(true), 1800);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(unlockTimer);
+    };
   }, [decision]);
 
   return (
@@ -38,8 +44,8 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
       {showFlash && (
         <motion.div
           initial={{ opacity: 0 }}
-          animate={{ opacity: [0.15, 0.6, 0] }}
-          transition={{ duration: 0.55, ease: 'easeOut' }}
+          animate={{ opacity: [0.2, 0.75, 0] }}
+          transition={{ duration: 1.4, ease: 'easeOut' }}
           className={cn(
             'pointer-events-none fixed inset-0 z-40',
             isProfit ? 'bg-success/40' : 'bg-danger/40'
@@ -238,7 +244,7 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
 
         {/* Continue Button */}
         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-          <Button onClick={onContinue} className="w-full gap-2" size="lg">
+          <Button onClick={onContinue} className="w-full gap-2" size="lg" disabled={!canContinue}>
             Continue to Round {state.currentRound + 1}
             <ArrowRight className="h-4 w-4" />
           </Button>
