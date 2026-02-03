@@ -58,7 +58,7 @@ export interface SimulationState {
 export const HISTORICAL_SCENARIOS: SimulationScenario[] = [
   {
     id: 'dotcom-crash',
-    name: '🔴 Dot-Com Crash (2000-2001)',
+    name: 'Dot-Com Crash (2000-2001)',
     description: 'Experience the explosive burst of the tech bubble. Overvalued startups crash while fundamental players stabilize.',
     type: 'historical',
     basePrice: 100,
@@ -91,7 +91,7 @@ export const HISTORICAL_SCENARIOS: SimulationScenario[] = [
   },
   {
     id: '2008-financial',
-    name: '🏚️ 2008 Financial Crisis',
+    name: '2008 Financial Crisis',
     description: 'Lehman Brothers collapse, credit freeze, forced deleveraging. Markets spiral as fear grips institutions.',
     type: 'historical',
     basePrice: 100,
@@ -131,7 +131,7 @@ export const HISTORICAL_SCENARIOS: SimulationScenario[] = [
   },
   {
     id: 'covid-shock',
-    name: '🦠 COVID-19 Shock (2020)',
+    name: 'COVID-19 Shock (2020)',
     description: 'Black swan event. Markets crash 30%+ in weeks, then aggressive recovery on policy support.',
     type: 'historical',
     basePrice: 100,
@@ -175,7 +175,7 @@ export const HISTORICAL_SCENARIOS: SimulationScenario[] = [
 export const ABSTRACTED_SCENARIOS: SimulationScenario[] = [
   {
     id: 'bull-market',
-    name: '📈 Persistent Bull Run',
+    name: 'Persistent Bull Run',
     description: 'Strong uptrend with minor pullbacks. Fundamental growth drives prices steadily higher.',
     type: 'abstracted',
     basePrice: 100,
@@ -201,7 +201,7 @@ export const ABSTRACTED_SCENARIOS: SimulationScenario[] = [
   },
   {
     id: 'bear-market',
-    name: '📉 Brutal Bear Market',
+    name: 'Brutal Bear Market',
     description: 'Systematic decline with rallies that fail. Sellers overwhelm buyers every day.',
     type: 'abstracted',
     basePrice: 100,
@@ -234,7 +234,7 @@ export const ABSTRACTED_SCENARIOS: SimulationScenario[] = [
   },
   {
     id: 'extreme-volatility',
-    name: '⚡ Extreme Volatility Gauntlet',
+    name: 'Extreme Volatility Gauntlet',
     description: 'Wild swings in both directions. +20% or -20% moves are common. Profitable for day traders, deadly for hodlers.',
     type: 'abstracted',
     basePrice: 100,
@@ -267,7 +267,7 @@ export const ABSTRACTED_SCENARIOS: SimulationScenario[] = [
   },
   {
     id: 'regulation-storm',
-    name: '⚖️ Regulatory Storm',
+    name: 'Regulatory Storm',
     description: 'Government intervention and policy changes dominate. Expect restrictions, taxes, and surprise announcements.',
     type: 'abstracted',
     basePrice: 100,
@@ -300,7 +300,7 @@ export const ABSTRACTED_SCENARIOS: SimulationScenario[] = [
   },
   {
     id: 'custom-chaos',
-    name: '🎲 Pure Chaos (All Events)',
+    name: 'Pure Chaos (All Events)',
     description: 'Every event enabled at MAX intensity. Only for traders with nerves of steel.',
     type: 'abstracted',
     basePrice: 100,
