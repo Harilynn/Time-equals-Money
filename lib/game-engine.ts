@@ -428,17 +428,48 @@ export function getBestCase(outcomes: Outcome[]): Outcome {
 
 // Resolve a trade based on seeded random
 export function resolveTrade(instrument: MarketInstrument, random: SeededRandom): Outcome {
+  return resolveOutcome(instrument.outcomes, random);
+}
+
+export function resolveOutcome(outcomes: Outcome[], random: SeededRandom): Outcome {
   const roll = random.next();
   let cumulative = 0;
 
-  for (const outcome of instrument.outcomes) {
+  for (const outcome of outcomes) {
     cumulative += outcome.probability;
     if (roll < cumulative) {
       return outcome;
     }
   }
 
-  return instrument.outcomes[instrument.outcomes.length - 1];
+  return outcomes[outcomes.length - 1];
+}
+
+export function adjustOutcomesForStreak(
+  outcomes: Outcome[],
+  streak: number,
+  riskLevel: MarketInstrument['riskLevel']
+): Outcome[] {
+  if (streak > -3 && streak < 3) return outcomes;
+
+  const maxShift = riskLevel === 'low' ? 0.06 : riskLevel === 'medium' ? 0.05 : riskLevel === 'high' ? 0.03 : 0.02;
+  const adjusted = outcomes.map((o) => ({ ...o }));
+  const bestIndex = adjusted.reduce((best, o, i) => (o.multiplier > adjusted[best].multiplier ? i : best), 0);
+  const worstIndex = adjusted.reduce((worst, o, i) => (o.multiplier < adjusted[worst].multiplier ? i : worst), 0);
+
+  if (streak <= -3) {
+    const shift = Math.min(maxShift, adjusted[worstIndex].probability * 0.5);
+    adjusted[worstIndex].probability -= shift;
+    adjusted[bestIndex].probability += shift;
+  }
+
+  if (streak >= 3) {
+    const shift = Math.min(maxShift, adjusted[bestIndex].probability * 0.5);
+    adjusted[bestIndex].probability -= shift;
+    adjusted[worstIndex].probability += shift;
+  }
+
+  return adjusted;
 }
 
 // Calculate the net change from a trade

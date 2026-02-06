@@ -113,7 +113,12 @@ export function GameBoard() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6">
+      <main
+        className={cn(
+          'mx-auto py-6',
+          phase === 'feedback' ? 'max-w-none px-0' : 'max-w-7xl px-4'
+        )}
+      >
         <div className="space-y-6">
           {/* Phase Indicator & Round Info */}
           <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
@@ -304,7 +309,7 @@ export function GameBoard() {
                 initial={{ opacity: 0 }} 
                 animate={{ opacity: 1 }} 
                 exit={{ opacity: 0 }}
-                className="w-screen -mx-4"
+                className="w-full"
               >
                 <OutcomeDisplay decision={lastDecision} onContinue={handleContinue} />
               </motion.div>

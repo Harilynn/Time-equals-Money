@@ -18,6 +18,8 @@ import {
   calculateMarginInterest,
   getPlayerTitle,
   detectHotStreak,
+  adjustOutcomesForStreak,
+  resolveOutcome,
   MARKET_INSTRUMENTS,
   LESSONS,
   STARTING_TIME,
@@ -247,12 +249,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
       const seed = Date.now() + state.currentRound * 1000 + Math.floor(Math.random() * 1000);
       const random = new SeededRandom(seed);
-      const outcome = resolveTrade(instrument, random);
+      const adjustedOutcomes = adjustOutcomesForStreak(instrument.outcomes, state.streak, instrument.riskLevel);
+      const outcome = resolveOutcome(adjustedOutcomes, random);
       
       // Calculate net change: positive = profit, negative = loss
       const netChange = calculateNetChange(stake, outcome.multiplier);
       
-      const ev = calculateEV(instrument.outcomes);
+      const ev = calculateEV(adjustedOutcomes);
       const optimal = wasDecisionOptimal(instrument, stake, state.timeRemaining);
 
       const decision: Decision = {
