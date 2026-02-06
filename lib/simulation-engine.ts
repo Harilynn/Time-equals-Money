@@ -1132,7 +1132,7 @@ export function simulateDay(
   priceChange += baseMove + baselineNoise;
 
   // Mean reversion toward base price
-  const meanReversion = ((scenario.basePrice - state.currentPrice) / scenario.basePrice) * 0.12;
+  const meanReversion = ((scenario.basePrice - state.currentPrice) / scenario.basePrice) * 0.18;
   priceChange += meanReversion;
 
   // Sentiment-driven drift
@@ -1140,18 +1140,20 @@ export function simulateDay(
 
   // Recovery bias after deep drawdown
   const drawdown = (scenario.basePrice - state.currentPrice) / scenario.basePrice;
-  if (drawdown > 0.4) {
-    priceChange += 0.03;
+  if (drawdown > 0.35) {
+    priceChange += 0.04;
   }
-  if (drawdown > 0.7) {
-    priceChange += 0.05;
+  if (drawdown > 0.6) {
+    priceChange += 0.06;
   }
 
   // Apply event impacts
   for (const eventType of activeEvents) {
     const event = scenario.events[eventType];
     if (event) {
-      const eventMagnitude = (event.intensity / 100) * event.impact;
+      const priceRatio = state.currentPrice / scenario.basePrice;
+      const dampener = Math.max(0.4, Math.min(1, priceRatio));
+      const eventMagnitude = (event.intensity / 100) * event.impact * dampener;
       priceChange += eventMagnitude;
 
       if (eventType === 'boom') sentimentDelta += 30;
@@ -1180,10 +1182,10 @@ export function simulateDay(
   }
 
   // Clamp daily move to avoid runaway collapses
-  const clampedChange = Math.max(-0.15, Math.min(0.25, priceChange));
+  const clampedChange = Math.max(-0.15, Math.min(0.35, priceChange));
 
   // Calculate new price
-  const minPrice = Math.max(1, scenario.basePrice * 0.05);
+  const minPrice = Math.max(1, scenario.basePrice * 0.15);
   const newPrice = Math.max(state.currentPrice * (1 + clampedChange), minPrice);
   const priceHistoryWithNewPrice = [...state.priceHistory, newPrice];
 

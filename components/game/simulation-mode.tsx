@@ -252,8 +252,14 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
     scenario: SimulationScenario,
     option: SimulationDecisionOption
   ): SimulationState => {
-    const minPrice = Math.max(1, scenario.basePrice * 0.05);
-    const newPrice = Math.max(state.currentPrice * (1 + option.effects.priceShock), minPrice);
+    const minPrice = Math.max(1, scenario.basePrice * 0.15);
+    const priceRatio = state.currentPrice / scenario.basePrice;
+    const shockMultiplier = priceRatio < 0.5 ? 0.6 : 1;
+    const recoveryBoost = priceRatio < 0.5 ? 0.03 : 0;
+    const newPrice = Math.max(
+      state.currentPrice * (1 + option.effects.priceShock * shockMultiplier + recoveryBoost),
+      minPrice
+    );
     const newSentiment = Math.max(-100, Math.min(100, state.sentiment + option.effects.sentiment));
     const newVolatility = Math.max(scenario.volatilityBase * 0.5, Math.min(0.3, state.volatility * (1 + option.effects.volatility)));
 
