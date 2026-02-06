@@ -26,6 +26,10 @@ import {
   RotateCcw,
   Scale,
   Skull,
+  Sparkles,
+  CheckCircle,
+  XCircle,
+  Lightbulb,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
@@ -52,6 +56,21 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
   const [pendingDecision, setPendingDecision] = useState<SimulationDecision | null>(null);
   const [decisionIndex, setDecisionIndex] = useState(0);
   const [focusedOption, setFocusedOption] = useState<SimulationDecisionOption | null>(null);
+  const [decisionTimeline, setDecisionTimeline] = useState<SimulationDecision[]>([]);
+  const [decisionHistory, setDecisionHistory] = useState<Array<{
+    decision: SimulationDecision;
+    option: SimulationDecisionOption;
+    verdict: 'good' | 'bad' | 'improve';
+    impact: { price: number; sentiment: number; volatility: number };
+    lesson: string;
+  }>>([]);
+  const [decisionSummary, setDecisionSummary] = useState<{
+    decision: SimulationDecision;
+    option: SimulationDecisionOption;
+    verdict: 'good' | 'bad' | 'improve';
+    impact: { price: number; sentiment: number; volatility: number };
+    lesson: string;
+  } | null>(null);
   const [lossAlert, setLossAlert] = useState<{ title: string; detail: string } | null>(null);
   const [lastAlertDay, setLastAlertDay] = useState<number | null>(null);
 
@@ -78,6 +97,147 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
     crash: 'Violent price collapse, margin calls, forced selling',
     panic: 'Fear-driven selling, circuit breakers, liquidity dries up',
     regulation: 'Policy changes, new rules, compliance costs',
+  };
+
+  const autoDecisionTemplates = [
+    {
+      id: 'rate-hike',
+      title: 'Central Bank Rate Surprise',
+      context: 'A surprise rate hike hits risk assets. Funding costs spike as liquidity tightens.',
+      concept: {
+        name: 'Interest Rate Risk',
+        formula: 'Price ∝ 1 / (1 + r)',
+        lesson: 'Higher rates pressure valuations and increase volatility in growth assets.',
+      },
+    },
+    {
+      id: 'energy-shock',
+      title: 'Energy Supply Shock',
+      context: 'Oil supply disruptions drive inflation fears and whipsaw price action.',
+      concept: {
+        name: 'Input Cost Inflation',
+        formula: 'Margin = Revenue - Costs',
+        lesson: 'Rising input costs compress margins and increase downside risk.',
+      },
+    },
+    {
+      id: 'bank-run',
+      title: 'Bank Run Rumor Spreads',
+      context: 'Confidence breaks and deposits flee, triggering forced asset sales.',
+      concept: {
+        name: 'Liquidity Risk',
+        formula: 'Liquidity = Tradable Volume / Volatility',
+        lesson: 'When liquidity vanishes, even good assets can collapse fast.',
+      },
+    },
+    {
+      id: 'tech-regulation',
+      title: 'Tech Antitrust Action',
+      context: 'Regulators announce antitrust actions against dominant platforms.',
+      concept: {
+        name: 'Regulatory Risk',
+        formula: 'Valuation = Expected Cashflows / Risk',
+        lesson: 'Policy shifts can reprice growth expectations overnight.',
+      },
+    },
+    {
+      id: 'earnings-miss',
+      title: 'Earnings Miss Cascade',
+      context: 'Multiple large firms miss guidance, triggering broad derisking.',
+      concept: {
+        name: 'Earnings Risk',
+        formula: 'Price = EPS × Multiple',
+        lesson: 'Lower earnings compress multiples and accelerate drawdowns.',
+      },
+    },
+    {
+      id: 'geopolitical',
+      title: 'Geopolitical Shock',
+      context: 'Escalating tensions increase risk premiums across assets.',
+      concept: {
+        name: 'Risk Premium',
+        formula: 'Expected Return = Risk-free + Premium',
+        lesson: 'Higher uncertainty raises required returns and increases volatility.',
+      },
+    },
+  ];
+
+  const buildAutoDecision = (template: typeof autoDecisionTemplates[number], day: number, index: number): SimulationDecision => {
+    const baseContext = `${template.context} Example: ${selectedScenario?.name ?? 'current cycle'}.`;
+    return {
+      id: `auto-${template.id}-${day}-${index}`,
+      day,
+      title: template.title,
+      context: baseContext,
+      concept: template.concept,
+      options: [
+        {
+          id: `auto-${template.id}-defensive-${index}`,
+          label: 'Defensive repositioning',
+          rationale: 'Reduce exposure and preserve capital in uncertain conditions.',
+          probability: 0.62,
+          expectedReturn: -2,
+          volatility: 6,
+          impacts: {
+            player: 'Capital preserved, slower rebound participation',
+            government: 'Lower tax receipts short term',
+            economy: 'Risk appetite cools',
+            billionaires: 'Protect downside, miss sharp rallies',
+            middleClass: 'Avoids deep drawdowns',
+          },
+          effects: { priceShock: -0.01, sentiment: -5, volatility: -0.04, score: 3 },
+        },
+        {
+          id: `auto-${template.id}-balanced-${index}`,
+          label: 'Balanced risk posture',
+          rationale: 'Maintain exposure with hedges and controlled risk.',
+          probability: 0.5,
+          expectedReturn: 4,
+          volatility: 11,
+          impacts: {
+            player: 'Moderate upside with manageable risk',
+            government: 'Stable tax base',
+            economy: 'Capital remains active but cautious',
+            billionaires: 'Selective upside capture',
+            middleClass: 'Some drawdown protection',
+          },
+          effects: { priceShock: 0.015, sentiment: 4, volatility: 0.05, score: 4 },
+        },
+        {
+          id: `auto-${template.id}-aggressive-${index}`,
+          label: 'Aggressive risk-on bet',
+          rationale: 'Lean into volatility for outsized gains.',
+          probability: 0.35,
+          expectedReturn: 12,
+          volatility: 20,
+          impacts: {
+            player: 'Big upside, high drawdown risk',
+            government: 'Short-term tax windfall',
+            economy: 'Speculation increases',
+            billionaires: 'Potentially large gains',
+            middleClass: 'Largest downside exposure',
+          },
+          effects: { priceShock: 0.04, sentiment: 10, volatility: 0.14, score: -2 },
+        },
+      ],
+    };
+  };
+
+  const buildDecisionTimeline = (scenario: SimulationScenario) => {
+    const baseDecisions = scenario.decisions ? [...scenario.decisions] : [];
+    const interval = scenario.type === 'historical' ? 30 : 20;
+    const maxAuto = Math.floor(scenario.durationDays / interval);
+    const autoDecisions: SimulationDecision[] = [];
+
+    for (let i = 1; i <= maxAuto; i += 1) {
+      const day = i * interval;
+      const hasNearby = baseDecisions.some((d) => Math.abs(d.day - day) <= 6);
+      if (hasNearby) continue;
+      const template = autoDecisionTemplates[i % autoDecisionTemplates.length];
+      autoDecisions.push(buildAutoDecision(template, day, i));
+    }
+
+    return [...baseDecisions, ...autoDecisions].sort((a, b) => a.day - b.day);
   };
 
   const clearSimulationInterval = () => {
@@ -162,6 +322,8 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
     setLastAlertDay(null);
     setPendingDecision(null);
     setDecisionIndex(0);
+    setDecisionHistory([]);
+    setDecisionSummary(null);
 
     let state = createSimulationState(scenario);
     stateRef.current = state;
@@ -178,12 +340,16 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
       },
     };
 
-    scenarioRef.current = modifiedScenario;
-    startSimulationInterval(modifiedScenario);
+    const timeline = buildDecisionTimeline(modifiedScenario);
+    setDecisionTimeline(timeline);
+    scenarioRef.current = { ...modifiedScenario, decisions: timeline };
+    startSimulationInterval(scenarioRef.current);
   };
 
   const handleDecisionSelect = (option: SimulationDecisionOption) => {
-    if (!stateRef.current || !scenarioRef.current) return;
+    if (!stateRef.current || !scenarioRef.current || !pendingDecision) return;
+
+    const before = stateRef.current;
 
     const updatedState = applyDecisionOption(stateRef.current, scenarioRef.current, option);
     stateRef.current = updatedState;
@@ -191,8 +357,30 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
     setPendingDecision(null);
     setFocusedOption(null);
     setDecisionIndex((idx) => idx + 1);
-    setIsRunning(true);
+
+    const impact = {
+      price: (updatedState.currentPrice - before.currentPrice) / before.currentPrice,
+      sentiment: updatedState.sentiment - before.sentiment,
+      volatility: updatedState.volatility - before.volatility,
+    };
+
+    const verdict = option.effects.score >= 3 ? 'good' : option.effects.score <= -2 ? 'bad' : 'improve';
+    const lesson = pendingDecision.concept.lesson;
+
+    setDecisionHistory((prev) => [
+      ...prev,
+      { decision: pendingDecision, option, verdict, impact, lesson },
+    ]);
+
+    setDecisionSummary({ decision: pendingDecision, option, verdict, impact, lesson });
+    setIsRunning(false);
     soundManager.playClick();
+  };
+
+  const resumeAfterDecision = () => {
+    if (!scenarioRef.current) return;
+    setDecisionSummary(null);
+    setIsRunning(true);
     startSimulationInterval(scenarioRef.current);
   };
 
@@ -736,6 +924,115 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
             )}
           </AnimatePresence>
 
+          <AnimatePresence>
+            {decisionSummary && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[70] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.98, opacity: 0 }}
+                  className="w-full max-w-4xl rounded-2xl border-2 border-primary/40 bg-card/95 p-6"
+                >
+                  <div className="mb-4 flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-xs text-primary uppercase tracking-wider">Decision Outcome Summary</div>
+                      <h3 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-primary" /> {decisionSummary.decision.title}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-2">{decisionSummary.decision.context}</p>
+                    </div>
+                    <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                      Day {decisionSummary.decision.day}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="rounded-lg border border-border bg-muted/30 p-4">
+                      <div className="text-xs text-muted-foreground uppercase tracking-wider">Your Choice</div>
+                      <div className="text-lg font-semibold text-foreground mt-1">{decisionSummary.option.label}</div>
+                      <div className="text-sm text-muted-foreground mt-2">{decisionSummary.option.rationale}</div>
+                    </div>
+                    <div className="rounded-lg border border-border bg-muted/30 p-4">
+                      <div className="text-xs text-muted-foreground uppercase tracking-wider">Immediate Impact</div>
+                      <div className="mt-2 space-y-2 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Price</span>
+                          <span className={decisionSummary.impact.price >= 0 ? 'text-success font-semibold' : 'text-danger font-semibold'}>
+                            {decisionSummary.impact.price >= 0 ? '+' : ''}{(decisionSummary.impact.price * 100).toFixed(2)}%
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Sentiment</span>
+                          <span className={decisionSummary.impact.sentiment >= 0 ? 'text-success font-semibold' : 'text-danger font-semibold'}>
+                            {decisionSummary.impact.sentiment >= 0 ? '+' : ''}{decisionSummary.impact.sentiment}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Volatility</span>
+                          <span className={decisionSummary.impact.volatility <= 0 ? 'text-success font-semibold' : 'text-warning font-semibold'}>
+                            {decisionSummary.impact.volatility >= 0 ? '+' : ''}{(decisionSummary.impact.volatility * 100).toFixed(2)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className={
+                      `rounded-lg border p-4 ${
+                        decisionSummary.verdict === 'good'
+                          ? 'border-success/50 bg-success/10'
+                          : decisionSummary.verdict === 'bad'
+                            ? 'border-danger/50 bg-danger/10'
+                            : 'border-warning/50 bg-warning/10'
+                      }`
+                    }>
+                      <div className="text-xs text-muted-foreground uppercase tracking-wider">Verdict</div>
+                      <div className="mt-2 flex items-center gap-2 text-lg font-semibold text-foreground">
+                        {decisionSummary.verdict === 'good' && <CheckCircle className="h-5 w-5 text-success" />}
+                        {decisionSummary.verdict === 'bad' && <XCircle className="h-5 w-5 text-danger" />}
+                        {decisionSummary.verdict === 'improve' && <AlertTriangle className="h-5 w-5 text-warning" />}
+                        {decisionSummary.verdict === 'good'
+                          ? 'Good decision'
+                          : decisionSummary.verdict === 'bad'
+                            ? 'Bad decision'
+                            : 'Can improve'}
+                      </div>
+                      <div className="mt-2 text-sm text-muted-foreground">
+                        {decisionSummary.verdict === 'good'
+                          ? 'Your choice aligned with the scenario risk profile.'
+                          : decisionSummary.verdict === 'bad'
+                            ? 'Your choice amplified downside risk in this environment.'
+                            : 'The choice was acceptable, but risk management could be tighter.'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-lg border border-primary/40 bg-primary/10 p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <Lightbulb className="h-4 w-4 text-primary" /> Lesson to Learn
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-2">{decisionSummary.lesson}</div>
+                  </div>
+
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      onClick={() => {
+                        soundManager.playClick();
+                        resumeAfterDecision();
+                      }}
+                      className="rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                    >
+                      Continue Simulation
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Live Stats Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <motion.div
@@ -1001,6 +1298,67 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
               </li>
             </ul>
           </motion.div>
+
+          {/* Decision Review */}
+          {decisionHistory.length > 0 && (
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="bg-card/60 border-2 border-border rounded-xl p-6 mb-8"
+            >
+              <h3 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
+                <Activity className="h-5 w-5 text-primary" /> Decision Impact Review
+              </h3>
+              <div className="grid gap-4">
+                {decisionHistory.map((entry) => (
+                  <div key={entry.decision.id} className="rounded-lg border border-border bg-muted/20 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <div className="text-xs text-muted-foreground uppercase tracking-wider">Day {entry.decision.day}</div>
+                        <div className="text-lg font-semibold text-foreground">{entry.decision.title}</div>
+                        <div className="text-sm text-muted-foreground">Choice: {entry.option.label}</div>
+                      </div>
+                      <div className={
+                        `flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+                          entry.verdict === 'good'
+                            ? 'bg-success/20 text-success'
+                            : entry.verdict === 'bad'
+                              ? 'bg-danger/20 text-danger'
+                              : 'bg-warning/20 text-warning'
+                        }`
+                      }>
+                        {entry.verdict === 'good' && <CheckCircle className="h-4 w-4" />}
+                        {entry.verdict === 'bad' && <XCircle className="h-4 w-4" />}
+                        {entry.verdict === 'improve' && <AlertTriangle className="h-4 w-4" />}
+                        {entry.verdict === 'good' ? 'Good' : entry.verdict === 'bad' ? 'Bad' : 'Improve'}
+                      </div>
+                    </div>
+                    <div className="mt-3 grid gap-2 text-sm text-muted-foreground md:grid-cols-3">
+                      <div>
+                        Impact: <span className={entry.impact.price >= 0 ? 'text-success' : 'text-danger'}>
+                          {entry.impact.price >= 0 ? '+' : ''}{(entry.impact.price * 100).toFixed(2)}% price
+                        </span>
+                      </div>
+                      <div>
+                        Sentiment: <span className={entry.impact.sentiment >= 0 ? 'text-success' : 'text-danger'}>
+                          {entry.impact.sentiment >= 0 ? '+' : ''}{entry.impact.sentiment}
+                        </span>
+                      </div>
+                      <div>
+                        Volatility: <span className={entry.impact.volatility <= 0 ? 'text-success' : 'text-warning'}>
+                          {entry.impact.volatility >= 0 ? '+' : ''}{(entry.impact.volatility * 100).toFixed(2)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground">
+                      <span className="font-semibold text-foreground">Lesson:</span> {entry.lesson}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex gap-4">
