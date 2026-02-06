@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Decision, MARKET_INSTRUMENTS, FINANCIAL_CONCEPTS, getConceptExplanation, calculateEV, formatTimeString } from '@/lib/game-engine';
+import { Decision, MARKET_INSTRUMENTS, FINANCIAL_CONCEPTS, getConceptExplanation, calculateEV, formatTimeString, SeededRandom } from '@/lib/game-engine';
 import { useGame } from '@/lib/game-context';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Leaderboard } from '@/components/game/leaderboard';
-import { TrendingUp, TrendingDown, BookOpen, Lightbulb, AlertTriangle, CheckCircle, XCircle, ArrowRight, Skull, Heart, Trophy, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, BookOpen, Lightbulb, AlertTriangle, CheckCircle, XCircle, ArrowRight, Skull, Heart, Trophy, X, Droplet, Plus } from 'lucide-react';
 
 interface OutcomeDisplayProps {
   decision: Decision;
@@ -28,6 +28,22 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
   const isProfit = decision.netChange > 0;
   const isLoss = decision.netChange < 0;
   const evDifference = decision.actualValue - decision.expectedValue;
+
+  const rainItems = (() => {
+    const rng = new SeededRandom(decision.round * 100000 + decision.stake);
+    const count = isProfit ? 28 : 18;
+    return Array.from({ length: count }, (_, index) => ({
+      id: index,
+      left: rng.next() * 100,
+      size: 14 + rng.next() * 18,
+      delay: rng.next() * 0.8,
+      duration: 1.2 + rng.next() * 0.9,
+      rotate: rng.next() * 180,
+      drift: (rng.next() - 0.5) * 40,
+    }));
+  })();
+
+  const RainIcon = isProfit ? Plus : Droplet;
 
   const getOutcomeReason = () => {
     if (isProfit) {
@@ -80,7 +96,7 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
   }, [decision, onContinue]);
 
   return (
-    <div className="min-h-screen max-h-screen space-y-6 overflow-y-auto px-4 py-6 md:px-8">
+    <div className="min-h-screen max-h-screen w-full space-y-6 overflow-y-auto px-4 py-6 md:px-10">
       {showFlash && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -95,6 +111,20 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
 
       {showPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 p-4 backdrop-blur-sm">
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            {rainItems.map((item) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: -40, x: 0, rotate: 0 }}
+                animate={{ opacity: [0, 0.9, 0.9, 0], y: '120%', x: item.drift, rotate: item.rotate }}
+                transition={{ duration: item.duration, delay: item.delay, ease: 'easeOut' }}
+                style={{ left: `${item.left}%`, width: item.size, height: item.size }}
+                className="absolute top-0"
+              >
+                <RainIcon className={cn('h-full w-full', isProfit ? 'text-success/70' : 'text-danger/70')} />
+              </motion.div>
+            ))}
+          </div>
           <motion.div
             initial={{ opacity: 0, y: 10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
