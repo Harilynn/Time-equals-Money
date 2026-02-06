@@ -29,6 +29,41 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
   const isLoss = decision.netChange < 0;
   const evDifference = decision.actualValue - decision.expectedValue;
 
+  const getOutcomeReason = () => {
+    if (isProfit) {
+      if (evDifference >= 0) {
+        return 'Your outcome landed above the expected value, which amplified your gains.';
+      }
+      return 'You still profited, but the outcome landed below the expected value.';
+    }
+    if (isLoss) {
+      if (decision.expectedValue < 0) {
+        return 'This trade had negative expected value. The risk outweighed the reward.';
+      }
+      return 'Variance went against you; the outcome fell below the expected value.';
+    }
+    return 'The outcome matched the expected value, resulting in no net change.';
+  };
+
+  const getWinGuidance = () => {
+    if (!isProfit) return null;
+    if (decision.stake / state.timeRemaining > 0.5) {
+      return 'You won, but the stake was oversized. Consider scaling down to protect your remaining time.';
+    }
+    return 'Your sizing aligned with the odds. Keep risk proportional to your remaining time.';
+  };
+
+  const getLossGuidance = () => {
+    if (!isLoss) return null;
+    if (decision.stake / state.timeRemaining > 0.5) {
+      return 'The loss was amplified by an oversized stake. Reduce position size on high volatility trades.';
+    }
+    if (decision.expectedValue < 0) {
+      return 'Avoid negative expected value setups unless the downside is limited or hedged.';
+    }
+    return 'Your setup was reasonable, but variance hit. Consider diversifying across lower-risk instruments.';
+  };
+
   useEffect(() => {
     setCanContinue(false);
     setShowFlash(true);
@@ -45,7 +80,7 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
   }, [decision, onContinue]);
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen max-h-screen space-y-6 overflow-y-auto px-4 py-6 md:px-8">
       {showFlash && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -205,6 +240,7 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
               <div>
                 <span className="font-medium text-foreground">{conceptExplanation.conceptUsed}</span>
                 <p className="text-sm text-muted-foreground">{conceptExplanation.explanation}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{getOutcomeReason()}</p>
               </div>
             </div>
 
@@ -229,28 +265,24 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
           </div>
 
           {/* Win/Loss Guidance */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className={cn('rounded-lg border p-4', isLoss ? 'border-danger/40 bg-danger/5' : 'border-border bg-muted/20')}>
+          {isLoss && (
+            <div className={cn('rounded-lg border p-4', 'border-danger/40 bg-danger/5')}>
               <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
                 <XCircle className="h-4 w-4 text-danger" />
                 If You Lost
               </div>
-              <p className="text-sm text-muted-foreground">{conceptExplanation.improvement}</p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Reduce stake sizing when volatility spikes. Favor instruments with tighter downside when your streak is negative.
-              </p>
+              <p className="text-sm text-muted-foreground">{getLossGuidance()}</p>
             </div>
-            <div className={cn('rounded-lg border p-4', isProfit ? 'border-success/40 bg-success/5' : 'border-border bg-muted/20')}>
+          )}
+          {isProfit && (
+            <div className={cn('rounded-lg border p-4', 'border-success/40 bg-success/5')}>
               <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
                 <CheckCircle className="h-4 w-4 text-success" />
                 If You Won
               </div>
-              <p className="text-sm text-muted-foreground">Your sizing aligned with the odds. Keep risk proportional to your remaining time.</p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Lock in gains by reducing exposure after large wins and avoid compounding into a hot streak trap.
-              </p>
+              <p className="text-sm text-muted-foreground">{getWinGuidance()}</p>
             </div>
-          </div>
+          )}
 
           {/* Market Reaction / Signals */}
           {decision.marketBias && decision.marketBias.reasons.length > 0 && (

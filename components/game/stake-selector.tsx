@@ -42,6 +42,56 @@ export function StakeSelector({ instrument, onConfirm, onCancel }: StakeSelector
   const isAllIn = riskPercent > 80;
   const couldDie = timeAfterWorst <= 0;
 
+  const getCommitHint = () => {
+    if (couldDie) {
+      return {
+        tone: 'danger',
+        title: 'Fatal Exposure',
+        body: 'This stake can wipe out your remaining time on a single downside outcome. Lower the stake or choose a lower-risk instrument.',
+      };
+    }
+
+    if (instrument.riskLevel === 'extreme') {
+      return {
+        tone: 'warning',
+        title: 'Extreme Volatility',
+        body: 'Extreme instruments amplify both wins and losses. Favor smaller stakes unless you have a large time buffer.',
+      };
+    }
+
+    if (state.marketCondition === 'bear') {
+      return {
+        tone: 'warning',
+        title: 'Bear Market Headwind',
+        body: 'Downside outcomes are more likely. Use conservative stakes or pick defensive instruments.',
+      };
+    }
+
+    if (state.marketCondition === 'bull' && ev > 0 && riskPercent < 20) {
+      return {
+        tone: 'success',
+        title: 'Favorable Setup',
+        body: 'Positive expected value in a bull market. This stake is measured and aligned with the odds.',
+      };
+    }
+
+    if (isHighRisk) {
+      return {
+        tone: 'warning',
+        title: 'High Stake Pressure',
+        body: 'You are risking a large chunk of remaining life. Consider trimming the stake to reduce drawdown risk.',
+      };
+    }
+
+    return {
+      tone: 'neutral',
+      title: 'Measured Risk',
+      body: 'Your stake is within a controlled range. Keep an eye on volatility and adjust if conditions shift.',
+    };
+  };
+
+  const commitHint = getCommitHint();
+
   // Countdown timer
   useEffect(() => {
     if (isCommitted) return;
@@ -179,6 +229,23 @@ export function StakeSelector({ instrument, onConfirm, onCancel }: StakeSelector
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>Min: {formatTimeString(instrument.minStake)}</span>
           <span>Max: {formatTimeString(maxStake)}</span>
+        </div>
+
+        {/* Commitment Hint */}
+        <div
+          className={cn(
+            'rounded-lg border p-3 text-xs leading-relaxed',
+            commitHint.tone === 'danger' && 'border-danger/40 bg-danger/10 text-danger',
+            commitHint.tone === 'warning' && 'border-warning/40 bg-warning/10 text-warning',
+            commitHint.tone === 'success' && 'border-success/40 bg-success/10 text-success',
+            commitHint.tone === 'neutral' && 'border-border bg-muted/30 text-muted-foreground'
+          )}
+        >
+          <div className="mb-1 flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Zap className={cn('h-4 w-4', commitHint.tone === 'danger' && 'text-danger', commitHint.tone === 'warning' && 'text-warning', commitHint.tone === 'success' && 'text-success')} />
+            {commitHint.title}
+          </div>
+          <p>{commitHint.body}</p>
         </div>
 
         {/* Risk Bar */}
