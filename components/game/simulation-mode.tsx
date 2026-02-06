@@ -1113,8 +1113,16 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="day" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" domain={['dataMin * 0.95', 'dataMax * 1.05']} />
+                <XAxis
+                  dataKey="day"
+                  stroke="#94a3b8"
+                  label={{ value: 'Day', position: 'insideBottomRight', offset: -6, fill: '#94a3b8' }}
+                />
+                <YAxis
+                  stroke="#94a3b8"
+                  domain={['dataMin * 0.95', 'dataMax * 1.05']}
+                  label={{ value: 'Price', angle: -90, position: 'insideLeft', fill: '#94a3b8' }}
+                />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: '#1e293b',
@@ -1123,6 +1131,8 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
                     padding: '8px',
                   }}
                   labelStyle={{ color: '#06b6d4' }}
+                  formatter={(value: number) => [`$${value.toFixed(2)}`, 'Price']}
+                  labelFormatter={(label) => `Day ${label}`}
                 />
                 <Line type="monotone" dataKey="price" stroke="#06b6d4" strokeWidth={2} dot={false} />
               </LineChart>
@@ -1217,8 +1227,15 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="day" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
+                <XAxis
+                  dataKey="day"
+                  stroke="#94a3b8"
+                  label={{ value: 'Day', position: 'insideBottomRight', offset: -6, fill: '#94a3b8' }}
+                />
+                <YAxis
+                  stroke="#94a3b8"
+                  label={{ value: 'Price', angle: -90, position: 'insideLeft', fill: '#94a3b8' }}
+                />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: '#1e293b',
@@ -1226,6 +1243,8 @@ export function SimulationMode({ onBack }: SimulationModeProps) {
                     borderRadius: '8px',
                   }}
                   labelStyle={{ color: '#06b6d4' }}
+                  formatter={(value: number) => [`$${value.toFixed(2)}`, 'Price']}
+                  labelFormatter={(label) => `Day ${label}`}
                 />
                 <Line type="monotone" dataKey="price" stroke="#06b6d4" strokeWidth={2} dot={false} />
               </LineChart>
