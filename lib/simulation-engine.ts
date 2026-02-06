@@ -1128,10 +1128,11 @@ export function simulateDay(
 
   // Base random walk with drift
   const baseMove = (rng.next() - 0.5) * 2 * state.volatility;
-  priceChange += baseMove;
+  const baselineNoise = (rng.next() - 0.5) * 0.01;
+  priceChange += baseMove + baselineNoise;
 
   // Mean reversion toward base price
-  const meanReversion = ((scenario.basePrice - state.currentPrice) / scenario.basePrice) * 0.05;
+  const meanReversion = ((scenario.basePrice - state.currentPrice) / scenario.basePrice) * 0.12;
   priceChange += meanReversion;
 
   // Sentiment-driven drift
@@ -1139,8 +1140,11 @@ export function simulateDay(
 
   // Recovery bias after deep drawdown
   const drawdown = (scenario.basePrice - state.currentPrice) / scenario.basePrice;
-  if (drawdown > 0.6) {
-    priceChange += 0.02;
+  if (drawdown > 0.4) {
+    priceChange += 0.03;
+  }
+  if (drawdown > 0.7) {
+    priceChange += 0.05;
   }
 
   // Apply event impacts
@@ -1176,7 +1180,7 @@ export function simulateDay(
   }
 
   // Clamp daily move to avoid runaway collapses
-  const clampedChange = Math.max(-0.18, Math.min(0.22, priceChange));
+  const clampedChange = Math.max(-0.15, Math.min(0.25, priceChange));
 
   // Calculate new price
   const minPrice = Math.max(1, scenario.basePrice * 0.05);
