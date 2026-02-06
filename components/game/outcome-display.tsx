@@ -35,6 +35,7 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
     return Array.from({ length: count }, (_, index) => ({
       id: index,
       left: rng.next() * 100,
+      top: rng.next() * 100,
       size: 14 + rng.next() * 18,
       delay: rng.next() * 0.8,
       duration: 1.2 + rng.next() * 0.9,
@@ -115,11 +116,11 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
             {rainItems.map((item) => (
               <motion.div
                 key={item.id}
-                initial={{ opacity: 0, y: -40, x: 0, rotate: 0 }}
-                animate={{ opacity: [0, 0.9, 0.9, 0], y: '120%', x: item.drift, rotate: item.rotate }}
+                initial={{ opacity: 0, y: -30, x: 0, rotate: 0 }}
+                animate={{ opacity: [0, 0.9, 0.9, 0], y: '140%', x: item.drift, rotate: item.rotate }}
                 transition={{ duration: item.duration, delay: item.delay, ease: 'easeOut' }}
-                style={{ left: `${item.left}%`, width: item.size, height: item.size }}
-                className="absolute top-0"
+                style={{ left: `${item.left}%`, top: `${item.top}%`, width: item.size, height: item.size }}
+                className="absolute"
               >
                 <RainIcon className={cn('h-full w-full', isProfit ? 'text-success/70' : 'text-danger/70')} />
               </motion.div>
