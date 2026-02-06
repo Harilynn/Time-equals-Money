@@ -6,7 +6,8 @@ import { Decision, MARKET_INSTRUMENTS, FINANCIAL_CONCEPTS, getConceptExplanation
 import { useGame } from '@/lib/game-context';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, TrendingDown, BookOpen, Lightbulb, AlertTriangle, CheckCircle, XCircle, ArrowRight, Skull, Heart, Trophy } from 'lucide-react';
+import { Leaderboard } from '@/components/game/leaderboard';
+import { TrendingUp, TrendingDown, BookOpen, Lightbulb, AlertTriangle, CheckCircle, XCircle, ArrowRight, Skull, Heart, Trophy, X } from 'lucide-react';
 
 interface OutcomeDisplayProps {
   decision: Decision;
@@ -18,7 +19,7 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
   const [showFlash, setShowFlash] = useState(false);
   const [canContinue, setCanContinue] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  const autoCloseDelayMs = 3500;
+  const [showPopup, setShowPopup] = useState(true);
   const instrument = MARKET_INSTRUMENTS.find((i) => i.id === decision.instrumentId)!;
   const conceptExplanation = getConceptExplanation(instrument, decision);
   const concept = FINANCIAL_CONCEPTS[instrument.concept as keyof typeof FINANCIAL_CONCEPTS];
@@ -32,20 +33,19 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
     setCanContinue(false);
     setShowFlash(true);
     setShowDetails(false);
+    setShowPopup(true);
     const timer = setTimeout(() => setShowFlash(false), 1400);
     const detailsTimer = setTimeout(() => setShowDetails(true), 1800);
     const unlockTimer = setTimeout(() => setCanContinue(true), 2000);
-    const autoCloseTimer = setTimeout(() => onContinue(), autoCloseDelayMs);
     return () => {
       clearTimeout(timer);
       clearTimeout(detailsTimer);
       clearTimeout(unlockTimer);
-      clearTimeout(autoCloseTimer);
     };
   }, [decision, onContinue]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {showFlash && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -58,12 +58,45 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
         />
       )}
 
-      {/* Main Result Modal - Clean and Dramatic */}
+      {showPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 p-4 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="relative w-full max-w-xl rounded-xl border-2 border-border bg-card p-6 shadow-2xl"
+          >
+            <button
+              type="button"
+              onClick={() => setShowPopup(false)}
+              className="absolute right-3 top-3 rounded-full border border-border bg-muted/60 p-2 text-muted-foreground transition hover:text-foreground"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className="flex items-center gap-4">
+              <div className={cn('flex h-14 w-14 items-center justify-center rounded-full', isProfit ? 'bg-success/20' : 'bg-danger/20')}>
+                {isProfit ? <TrendingUp className="h-7 w-7 text-success" /> : <TrendingDown className="h-7 w-7 text-danger" />}
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Round Result</div>
+                <div className="text-xl font-bold text-foreground">{decision.outcome.label}</div>
+                <div className={cn('font-mono text-2xl font-bold', isProfit ? 'text-success' : 'text-danger')}>
+                  {isProfit ? '+' : '-'}{formatTimeString(Math.abs(decision.netChange))}
+                </div>
+              </div>
+            </div>
+            <p className="mt-4 text-sm text-muted-foreground">Dismiss this overlay to review the full breakdown and continue.</p>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Main Result Screen */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="space-y-6 rounded-lg border-2 border-border bg-card p-8"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 10 }}
+        className="space-y-8 rounded-lg border-2 border-border bg-card p-6 md:p-8"
       >
         {/* Outcome Header with Icon */}
         <div className="text-center">
@@ -194,6 +227,45 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
               </div>
             </div>
           </div>
+
+          {/* Win/Loss Guidance */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className={cn('rounded-lg border p-4', isLoss ? 'border-danger/40 bg-danger/5' : 'border-border bg-muted/20')}>
+              <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+                <XCircle className="h-4 w-4 text-danger" />
+                If You Lost
+              </div>
+              <p className="text-sm text-muted-foreground">{conceptExplanation.improvement}</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Reduce stake sizing when volatility spikes. Favor instruments with tighter downside when your streak is negative.
+              </p>
+            </div>
+            <div className={cn('rounded-lg border p-4', isProfit ? 'border-success/40 bg-success/5' : 'border-border bg-muted/20')}>
+              <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+                <CheckCircle className="h-4 w-4 text-success" />
+                If You Won
+              </div>
+              <p className="text-sm text-muted-foreground">Your sizing aligned with the odds. Keep risk proportional to your remaining time.</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Lock in gains by reducing exposure after large wins and avoid compounding into a hot streak trap.
+              </p>
+            </div>
+          </div>
+
+          {/* Market Reaction / Signals */}
+          {decision.marketBias && decision.marketBias.reasons.length > 0 && (
+            <div className="rounded-lg border border-border bg-card/50 p-4">
+              <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+                <AlertTriangle className="h-4 w-4 text-warning" />
+                Market Reaction
+              </div>
+              <ul className="space-y-1 text-sm text-muted-foreground">
+                {decision.marketBias.reasons.map((reason) => (
+                  <li key={reason}>• {reason}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </motion.div>
 
         {/* Continue Button */}
@@ -204,6 +276,15 @@ export function OutcomeDisplay({ decision, onContinue }: OutcomeDisplayProps) {
           </Button>
         </motion.div>
       </motion.div>
+
+      {/* Leaderboard Section */}
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+          <Trophy className="h-4 w-4 text-primary" />
+          Leaderboard (Post-Result)
+        </div>
+        <Leaderboard currentScore={state.score} currentTitle={playerTitle} />
+      </div>
     </div>
   );
 }
