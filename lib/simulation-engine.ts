@@ -1163,7 +1163,8 @@ export function simulateDay(
   }
 
   // Calculate new price
-  const newPrice = Math.max(state.currentPrice * (1 + priceChange), state.currentPrice * 0.01);
+  const minPrice = Math.max(1, scenario.basePrice * 0.05);
+  const newPrice = Math.max(state.currentPrice * (1 + priceChange), minPrice);
   const priceHistoryWithNewPrice = [...state.priceHistory, newPrice];
 
   // Update sentiment
